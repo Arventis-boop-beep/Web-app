@@ -12,7 +12,7 @@
 
 **Пример запроса**  
 ```
-http://localhost:5000/api/users?db=mysql
+http://localhost:443/api/users?db=mysql
 ```
 
 ---
@@ -27,7 +27,7 @@ http://localhost:5000/api/users?db=mysql
 
 **Пример**  
 ```bash
-curl "http://localhost:5000/api/users/alice?db=postgres"
+curl "http://localhost:443/api/users/alice?db=postgres"
 ```
 
 ---
