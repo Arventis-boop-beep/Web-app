@@ -1,0 +1,61 @@
+services:                           # Определяем все контейнеры‑сервисы
+
+  app:                              #  Flask‑приложение
+    build: ./app                    #  └ Сборка образа из каталога ./app (Dockerfile внутри)
+    container_name: app             #  └ Явное имя контейнера, чтобы проще смотреть логи
+    restart: unless-stopped         #  └ Авто‑перезапуск, пока не остановим руками
+    depends_on:                     #  └ Запускать только после готовности указанных БД
+      postgres:                    #     • сервис postgres должен быть «healthy» или «running»
+        condition: service_healthy
+      mysql:                      #     • сервис mysql аналогично
+        condition: service_healthy
+    expose:
+      - "5000"
+
+  nginx:                            # 
+    image: nginx:1.25-alpine        #  Берём облегчённый официальный образ Nginx 1.25
+    container_name: nginx           #  Имя контейнера 
+    depends_on:                     #  Запускать после приложения (чтобы было куда проксировать)
+      - app                         #     • ждём сервис app
+    ports:                          #  Пробрасываем порты хоста во внутренний контейнер
+      - "80:80"                     #     • 80/tcp хоста → 80/tcp контейнера (HTTP)
+      - "443:443"                   #     • 443/tcp хоста → 443/tcp контейнера (HTTPS)
+    volumes:                        #  Монтируем файлы конфигурации и сертификаты
+      - ./nginx.conf:/etc/nginx/nginx.conf  #   • наш конфиг поверх дефолтного
+      - ./certs:/etc/nginx/ssl                #   • каталог с ключом/сертом внутри контейнера
+
+  postgres:                         #  Контейнер базы данных PostgreSQL
+    image: postgres:16             #  └ Официальный образ PostgreSQL 16
+    container_name: postgres        #  └ Имя контейнера «postgres»
+    restart: unless-stopped         #  └ Перезапускать автоматически, пока сервис не остановлен вручную
+    environment:                    #  └ Переменные окружения для первичной инициализации
+      POSTGRES_PASSWORD: postgres   #     • пароль суперпользователя «postgres»
+    volumes:                        #  └ Именованный том для долговременного хранения данных
+      - pg_data:/var/lib/postgresql/data  #   • каталог данных БД внутри контейнера
+    healthcheck:		#Проверяем, что база жива
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"] #Тестовая команда
+      interval: 3s #Периодичность опроса
+      timeout: 5s #Время ответа на запрос
+      retries: 5 #Количество попыток
+      start_period: 5s #Через сколько начинаем проверять
+
+  mysql:                            # Контейнер базы данных MySQL
+    image: mysql:8.2                #  └ Официальный образ MySQL 8.2
+    container_name: mysql           #  └ Имя контейнера «mysql»
+    restart: unless-stopped         #  └ Автоперезапуск при сбоях/рестарте Docker
+    environment:                    #  └ Переменные окружения для инициализации
+      MYSQL_ROOT_PASSWORD: root     #     • пароль пользователя «root»
+      MYSQL_DATABASE: test          #     • создать БД «test» сразу при старте
+    command: --default-authentication-plugin=mysql_native_password  # └ Используем «старый» плагин аутентификации для совместимости с PyMySQL
+    volumes:                        #  └ Именованный том для файлов MySQL
+      - mysql_data:/var/lib/mysql   #     • каталог данных БД внутри контейнера
+    healthcheck:		    # Проверяем, что база жива
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p$$root --silent"] #Тестовая команда
+      interval: 3s #Периодичность опроса
+      timeout: 5s #Время ответа на запрос
+      retries: 10 #Количество попыток
+      start_period: 10s #Через сколько начинаем проверять
+
+volumes:                            # Объявляем именованные тома, чтобы данные БД не пропадали
+  pg_data:                          #  └ Том для PostgreSQL (создастся автоматически)
+  mysql_data:                       #  └ Том для MySQL (аналогично)

@@ -16,13 +16,13 @@ POSTGRES_CFG = {
     "dbname": "postgres",
     "user": "postgres",
     "password": "postgres",
-    "host": "localhost",
+    "host": "postgres",
     "port": 5432,
     "client_encoding": "UTF8",
 }
 
 MYSQL_CFG = {
-    "host": "localhost",
+    "host": "mysql",
     "user": "root",
     "password": "root",
     "db": "test",
@@ -45,7 +45,7 @@ def _sqlite_conn():
 
 def _pg_conn():
     if not hasattr(g, "_pg"):
-        g._pg = psycopg2.connect(**POSTGRES_CFG)
+       g._pg = psycopg2.connect(**POSTGRES_CFG)
     return g._pg
 
 
@@ -57,7 +57,7 @@ def _mysql_conn():
 
 DB_HANDLERS = {
     "sqlite": _sqlite_conn,
-    "postgres": _pg_conn,
+#    "postgres": _pg_conn,
     "mysql": _mysql_conn,
 }
 
@@ -82,13 +82,13 @@ def ensure_schema():
                 password TEXT NOT NULL
             );
         """,
-        "postgres": """
-            CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                login TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL
-            );
-        """,
+#        "postgres": """
+#            CREATE TABLE IF NOT EXISTS users (
+#               id SERIAL PRIMARY KEY,
+#                login TEXT UNIQUE NOT NULL,
+#               password TEXT NOT NULL
+#           );
+#        """,
         "mysql": """
             CREATE TABLE IF NOT EXISTS users (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -221,7 +221,7 @@ def api_get_user(login):
             login_value = row[0] if isinstance(row, (list, tuple)) else row["login"]
             return jsonify({"login": login_value})
 
-    return jsonify({"error": "Пользователь не найден"}), 404
+    return jsonify({"error": "User not found"}), 404
 
 
 @app.route("/api/users", methods=["POST"])
@@ -231,7 +231,7 @@ def api_create_user():
     passwd = data.get("password")
 
     if not login or not passwd:
-        return jsonify({"error": "Неверные данные"}), 400
+        return jsonify({"error": "Wrong credentials"}), 400
 
     hashed = _password_hash(passwd)
 
@@ -242,7 +242,7 @@ def api_create_user():
             placeholder = "%s" if name != "sqlite" else "?"
             cur.execute(f"INSERT INTO users (login, password) VALUES ({placeholder}, {placeholder})", (login, hashed))
             conn.commit()
-        return jsonify({"message": "Пользователь создан"}), 201
+        return jsonify({"message": "User Created"}), 201
     except Exception as exc:
         
         for name in DB_HANDLERS.keys():
@@ -275,4 +275,4 @@ def api_delete_user(login):
 if __name__ == "__main__":
     with app.app_context():
         ensure_schema()
-    app.run(debug=False)
+    app.run(debug=False, host="0.0.0.0", port=5000)

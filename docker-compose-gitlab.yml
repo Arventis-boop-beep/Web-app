@@ -1,0 +1,29 @@
+# ---------------------------------------------
+# docker‑compose.yml — GitLab CE с HTTPS и SSH
+# ---------------------------------------------
+
+services:                                                     # Определяем сервисы
+  gitlab:                                                     # Единственный сервис — GitLab CE
+    image: gitlab/gitlab-ce:17.1.0-ce.0                       # Официальный образ GitLab CE (укажите свежий tag при обновлении)
+    container_name: gitlab_                                    # Имя контейнера (чтобы легко искать через docker ps)
+    restart: unless-stopped                                   # Перезапускать контейнер, если он упал или была перезагрузка хоста
+    hostname: localhost                                   # FQDN
+    ports:
+      - "10443:443"                                             # Проксируем порт 10443 хоста → 443 контейнера (HTTPS)
+
+    environment:                                              # Переменные окружения для Omnibus‑GitLab
+      GITLAB_OMNIBUS_CONFIG: |                              # Многострочная строка с конфигом
+        external_url 'https://localhost:10443'                # Базовый URL; протокол https включает NGINX + TLS
+        nginx['listen_port'] = 443                            # Порт, на котором Nginx внутри GitLab слушает HTTPS-запросы.
+        nginx['listen_https'] = true 			      # Включает HTTPS для встроенного Nginx.
+        nginx['redirect_http_to_https'] = true                # Автоматический 301 с 80→443
+        nginx['ssl_certificate']     = '/etc/gitlab/ssl/cert.crt'  # Путь к сертификату
+        nginx['ssl_certificate_key'] = '/etc/gitlab/ssl/cert.key'  # Путь к приватному ключу
+        letsencrypt['enable'] = false                         # Выключаем автоматическое получение LE‑сертификатов
+
+    volumes:                                                  # Пробрасываем каталоги с хоста в контейнер
+      - ./gitlab/config:/etc/gitlab      # Постоянные конфиги GitLab (gitlab.rb, secrets.json …)
+      - ./gitlab/logs:/var/log/gitlab    # Все логи (nginx, gitaly, rails, registry etc.)
+      - ./gitlab/data:/var/opt/gitlab    # Хранилище данных (репозитории, базы, CI‑артефакты)
+      - ./certs:/etc/gitlab/ssl
+      
