@@ -1,0 +1,14 @@
+form {
+    font: 14px Stem-Regular,arial, sans-serif;
+    border: 1px solid black;
+    color: #777991;
+    width: 25%;
+    margin-right: auto; 
+    margin-left: auto; 
+    text-align: center;
+
+}
+
+.container {
+    padding: 20px;
+}
